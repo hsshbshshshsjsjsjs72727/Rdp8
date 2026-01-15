@@ -1,0 +1,49 @@
+name: Start VNC Server with QEMU
+
+on:
+  workflow_dispatch:
+
+jobs:
+  start-vnc-server:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 realvnc-vnc-server net-tools
+
+      - name: Download RealVNC Server (if not in repo)
+        run: |
+          # Example: Download RealVNC Server from official source if needed
+          # Adjust URL and commands as per RealVNC licensing and availability
+          if ! command -v vncserver &> /dev/null; then
+            wget https://www.realvnc.com/download/file/vnc.files/VNC-Server-6.10.2-Linux-x64.deb -O vncserver.deb
+            sudo dpkg -i vncserver.deb || sudo apt-get install -f -y
+          fi
+
+      - name: Start QEMU VM with VNC enabled
+        run: |
+          # Start QEMU with VNC server listening on display :1 (port 5901)
+          nohup qemu-system-x86_64 -hda Win10pro.qcow2 -m 4096 -vnc :1 -daemonize &
+          sleep 5
+
+      - name: Verify VNC port 5901 is listening
+        run: |
+          if netstat -tln | grep ':5901'; then
+            echo "VNC server is running on port 5901"
+          else
+            echo "VNC server is NOT running on port 5901"
+            exit 1
+          fi
+
+      - name: Pending status with timeout
+        run: |
+          echo "Pending. 40 seconds left."
+          sleep 40
+
+      - name: Post checkout repository complete job
+        run: echo "VNC server setup and QEMU VM started successfully."
