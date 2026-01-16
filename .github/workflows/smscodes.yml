@@ -1,0 +1,71 @@
+name: Get ChatGPT SMS Code
+
+on:
+  workflow_dispatch:
+
+jobs:
+  get-phone-number:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Purchase US Number for OpenAI
+        id: buy_number
+        run: |
+          # Requesting a US number specifically for the 'openai' service
+          # Note: Specific area codes like 650 depend on current 5sim stock
+          RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.SIM_API_KEY }}" \
+            -H "Accept: application/json" \
+            "https://5sim.net/v1/user/buy/activation/usa/any/openai")
+          
+          echo "Full Response: $RESPONSE"
+          
+          ID=$(echo $RESPONSE | jq -r '.id')
+          PHONE=$(echo $RESPONSE | jq -r '.phone')
+          
+          if [ "$ID" == "null" ] || [ -z "$ID" ]; then
+            echo "Error: Could not purchase number. Check balance or API key."
+            exit 1
+          fi
+          
+          echo "ORDER_ID=$ID" >> $GITHUB_ENV
+          echo "PHONE_NUMBER=$PHONE" >> $GITHUB_ENV
+          echo "Successfully purchased: $PHONE (ID: $ID)"
+
+      - name: Wait for SMS Code (15 Minute Timeout)
+        run: |
+          echo "Waiting for SMS on ${{ env.PHONE_NUMBER }}..."
+          # 15 minutes = 900 seconds. Checking every 20 seconds.
+          MAX_RETRIES=45
+          COUNT=0
+          
+          while [ $COUNT -lt $MAX_RETRIES ]; do
+            STATUS_RES=$(curl -s -H "Authorization: Bearer ${{ secrets.SIM_API_KEY }}" \
+              -H "Accept: application/json" \
+              "https://5sim.net/v1/user/check/${{ env.ORDER_ID }}")
+            
+            SMS_CODE=$(echo $STATUS_RES | jq -r '.sms[0].code // empty')
+            STATUS=$(echo $STATUS_RES | jq -r '.status')
+            
+            if [ ! -z "$SMS_CODE" ]; then
+              echo "------------------------------------------"
+              echo "SMS RECEIVED SUCCESSFULLY!"
+              echo "Phone Number: ${{ env.PHONE_NUMBER }}"
+              echo "ChatGPT Verification Code: $SMS_CODE"
+              echo "------------------------------------------"
+              exit 0
+            fi
+            
+            if [ "$STATUS" == "CANCELED" ] || [ "$STATUS" == "TIMEOUT" ]; then
+              echo "Order status changed to $STATUS. Exiting."
+              exit 1
+            fi
+            
+            echo "Still waiting for SMS... ($((COUNT * 20))s elapsed)"
+            sleep 20
+            COUNT=$((COUNT + 1))
+          done
+          
+          echo "Timed out after 15 minutes without receiving SMS."
+          exit 1
