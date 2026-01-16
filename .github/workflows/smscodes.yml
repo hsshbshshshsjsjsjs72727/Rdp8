@@ -1,0 +1,80 @@
+name: Get SMS Code from 5sim
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rent-number:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get install -y jq
+
+      - name: Purchase US Phone Number
+        id: buy_number
+        env:
+          API_KEY: ${{ secrets.SIM5_API_KEY }}
+        run: |
+          # Requesting a US number for OpenAI/ChatGPT
+          # Parameters: country=usa, operator=any, product=openai
+          RESPONSE=$(curl -s -H "Authorization: Bearer $API_KEY" -H "Accept: application/json" \
+            "https://5sim.net/v1/user/buy/activation/usa/any/openai")
+          
+          ID=$(echo $RESPONSE | jq -r '.id')
+          PHONE=$(echo $RESPONSE | jq -r '.phone')
+          
+          if [ "$ID" == "null" ] || [ -z "$ID" ]; then
+            echo "Error: Purchase failed. Check balance or API key."
+            echo "Response: $RESPONSE"
+            exit 1
+          fi
+          
+          echo "order_id=$ID" >> $GITHUB_OUTPUT
+          echo "phone_number=$PHONE" >> $GITHUB_OUTPUT
+          echo "Successfully purchased: $PHONE (Order ID: $ID)"
+          echo "Prefix: +1"
+          echo "Done ✅ success"
+
+      - name: Wait for SMS Code
+        env:
+          API_KEY: ${{ secrets.SIM5_API_KEY }}
+          ORDER_ID: ${{ steps.buy_number.outputs.order_id }}
+        run: |
+          echo "Waiting for SMS code (Timeout: 15 minutes)..."
+          
+          # 15 minutes = 900 seconds. Check every 30 seconds.
+          for i in {1..30}; do
+            CHECK=$(curl -s -H "Authorization: Bearer $API_KEY" -H "Accept: application/json" \
+              "https://5sim.net/v1/user/check/$ORDER_ID")
+            
+            SMS_CODE=$(echo $CHECK | jq -r '.sms[0].code // empty')
+            STATUS=$(echo $CHECK | jq -r '.status')
+            
+            if [ ! -z "$SMS_CODE" ]; then
+              echo "------------------------------------------"
+              echo "SMS Received!"
+              echo "Phone number: ${{ steps.buy_number.outputs.phone_number }}"
+              echo "Code from SMS: $SMS_CODE"
+              echo "------------------------------------------"
+              exit 0
+            fi
+            
+            echo "Wait time: $((i * 30))s | Status: $STATUS | Waiting for SMS..."
+            sleep 30
+          done
+
+          echo "Timeout: No SMS received within 15 minutes."
+          exit 1
+
+      - name: Check Balance
+        if: always()
+        env:
+          API_KEY: ${{ secrets.SIM5_API_KEY }}
+        run: |
+          BALANCE=$(curl -s -H "Authorization: Bearer $API_KEY" -H "Accept: application/json" \
+            "https://5sim.net/v1/user/profile" | jq -r '.balance')
+          echo "Your balance: \$$BALANCE"
+          # Context: User mentioned free trial credit $0.50
