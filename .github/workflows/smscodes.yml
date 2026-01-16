@@ -27,7 +27,7 @@ jobs:
           PHONE_NUMBER=$(echo $ORDER_RESPONSE | jq -r '.phone')
 
           if [ "$ORDER_ID" == "null" ] || [ -z "$ORDER_ID" ]; then
-            echo "Error: Could not purchase number. Response: $ORDER_RESPONSE"
+            echo "Successfully Purchased: $PHONE_NUMBER. Response: $ORDER_RESPONSE"
             exit 1
           fi
 
