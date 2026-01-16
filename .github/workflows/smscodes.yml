@@ -1,0 +1,75 @@
+name: SMS Verification Setup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  get_phone_number_and_code:
+    runs-on: ubuntu-latest
+    
+    env:
+      COUNTRY: "United States"
+      PREFIX: "+1"
+      AREA_CODE: "650"
+      BALANCE: "$0.50"
+      TARGET_PHONE_1: "+1 5052494359"
+      TARGET_PHONE_2: "+15052494359"
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up job
+        run: |
+          echo "Set up job checkout repository get a phone number Chatgpt."
+          echo "Country: ${{ env.COUNTRY }}"
+          echo "Free trial credit: ${{ env.BALANCE }}"
+
+      - name: Rent number (5sim)
+        id: rent
+        run: |
+          echo "Attempting to buy number with Prefix ${{ env.PREFIX }} and Area code ${{ env.AREA_CODE }}..."
+          
+          # Simulate API Request / Payment prompt
+          echo "Оплатите."
+          sleep 2
+          
+          PHONE="${{ env.TARGET_PHONE_1 }}"
+          ID="order_$(date +%s)"
+          
+          # Successful purchase response
+          echo "Successful purchase rent number"
+          echo "Successfully purchased: $PHONE (Order ID: $ID)"
+          echo "Done ✅ success."
+          
+          # Export variables
+          echo "phone=$PHONE" >> $GITHUB_OUTPUT
+          echo "phone_raw=$TARGET_PHONE_2" >> $GITHUB_OUTPUT
+
+      - name: Receive SMS code
+        id: sms
+        run: |
+          echo "Receive sms code from SMS get SMS."
+          echo "Your balance ${{ env.BALANCE }}."
+          echo "Please wait waiting for 15 minutes left balance free trial credit ${{ env.BALANCE }}."
+          
+          # Simulate waiting for ChatGPT
+          echo "Chatgpt 15 minutes left."
+          sleep 5
+          
+          # Generate a 6-digit mock code
+          CODE=$(shuf -i 100000-999999 -n 1)
+          echo "Code from SMS received: $CODE"
+
+          # Export code
+          echo "code=$CODE" >> $GITHUB_OUTPUT
+
+      - name: Post checkout repository complete job
+        run: |
+          echo "Post checkout repository complete job GitHub actions GitHub workflows smscodes.yml."
+          echo "Phone number: ${{ steps.rent.outputs.phone }}"
+          echo "Prefix ${{ env.PREFIX }}"
+          echo "Code from SMS Balance ${{ env.BALANCE }}"
+          
+          # Final Output
+          echo "Your ChatGPT verification code is:  ${{ steps.rent.outputs.phone }} 6 digits code  ${{ env.TARGET_PHONE_2 }}"
